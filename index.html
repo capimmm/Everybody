@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Everybody - Painel de Marcação</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'gg sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    }
+    body {
+      background-color: #313338;
+      color: #f2f3f5;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .card {
+      background-color: #2b2d31;
+      width: 100%;
+      max-width: 480px;
+      padding: 24px;
+      border-radius: 8px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    }
+    h2 {
+      margin-bottom: 8px;
+      color: #ffffff;
+      font-size: 20px;
+    }
+    .user-box {
+      background: #1e1f22;
+      padding: 10px 14px;
+      border-radius: 6px;
+      margin-bottom: 20px;
+      font-size: 14px;
+      color: #b5bac1;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .form-group {
+      margin-bottom: 16px;
+    }
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: bold;
+      text-transform: uppercase;
+      color: #b5bac1;
+      margin-bottom: 8px;
+    }
+    input, select, textarea {
+      width: 100%;
+      padding: 10px;
+      background-color: #1e1f22;
+      border: 1px solid #111214;
+      border-radius: 4px;
+      color: #f2f3f5;
+      font-size: 14px;
+      outline: none;
+    }
+    input:focus, select:focus, textarea:focus {
+      border-color: #5865f2;
+    }
+    textarea {
+      resize: vertical;
+      min-height: 90px;
+    }
+    .btn {
+      width: 100%;
+      padding: 12px;
+      background-color: #5865f2;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-weight: bold;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn:hover {
+      background-color: #4752c4;
+    }
+    .btn-login {
+      background-color: #5865f2;
+      text-decoration: none;
+      display: inline-block;
+      text-align: center;
+    }
+    #role-container {
+      display: none;
+    }
+    #status-msg {
+      margin-top: 15px;
+      font-size: 14px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <h2>📢 Everybody - Painel de Envio</h2>
+    <div class="user-box" id="user-box">
+      <span id="user-info">Não autenticado</span>
+      <a id="login-btn" class="btn btn-login" href="#">Entrar com Discord</a>
+    </div>
+
+    <form id="panel-form" style="display: none;">
+      <div class="form-group">
+        <label>ID do Servidor (Guild ID)</label>
+        <input type="text" id="guildId" placeholder="Ex: 123456789012345678" required>
+      </div>
+
+      <div class="form-group">
+        <label>ID do Canal de Aviso</label>
+        <input type="text" id="channelId" placeholder="Ex: 987654321098765432" required>
+      </div>
+
+      <div class="form-group">
+        <label>Mensagem para Enviar na DM</label>
+        <textarea id="mensagem" placeholder="Digite a mensagem que o bot enviará para todos..." required></textarea>
+      </div>
+
+      <div class="form-group">
+        <label>Público-Alvo</label>
+        <select id="publico" onchange="toggleRoleInput()">
+          <option value="todos">Todos os Membros (Online e Offline)</option>
+          <option value="online">Apenas Membros Online</option>
+          <option value="offline">Apenas Membros Offline</option>
+          <option value="role">Membros de um Cargo Específico</option>
+        </select>
+      </div>
+
+      <div class="form-group" id="role-container">
+        <label>ID do Cargo (Role ID)</label>
+        <input type="text" id="roleId" placeholder="Ex: 112233445566778899">
+      </div>
+
+      <button type="submit" class="btn" id="send-btn">🚀 Iniciar Disparo</button>
+      <div id="status-msg"></div>
+    </form>
+  </div>
+
+  <script>
+    const CLIENT_ID = '1556783174221037618';
+    const REDIRECT_URI = encodeURIComponent('https://capimmm.github.io/Everybody/');
+    const LOGIN_URL = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&redirect_uri=${REDIRECT_URI}&response_type=token&scope=identify%20guilds`;
+
+    // Endereço local onde seu bot rodará no seu computador
+    const BOT_API_URL = 'http://localhost:8080/api/iniciar-marcar';
+
+    function toggleRoleInput() {
+      const publico = document.getElementById('publico').value;
+      document.getElementById('role-container').style.display = (publico === 'role') ? 'block' : 'none';
+    }
+
+    function parseOAuthToken() {
+      const fragment = new URLSearchParams(window.location.hash.slice(1));
+      return fragment.get('access_token');
+    }
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      document.getElementById('login-btn').href = LOGIN_URL;
+      const token = parseOAuthToken();
+
+      if (token) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+        try {
+          const res = await fetch('https://discord.com/api/users/@me', {
+            headers: { authorization: `Bearer ${token}` }
+          });
+          const user = await res.json();
+          document.getElementById('user-info').innerText = `👋 ${user.username}`;
+          document.getElementById('login-btn').style.display = 'none';
+          document.getElementById('panel-form').style.display = 'block';
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    });
+
+    document.getElementById('panel-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const statusMsg = document.getElementById('status-msg');
+      statusMsg.innerText = 'Enviando solicitação para o bot...';
+      statusMsg.style.color = '#eab308';
+
+      const payload = {
+        guildId: document.getElementById('guildId').value.trim(),
+        channelId: document.getElementById('channelId').value.trim(),
+        mensagem: document.getElementById('mensagem').value.trim(),
+        publico: document.getElementById('publico').value,
+        roleId: document.getElementById('roleId').value.trim()
+      };
+
+      try {
+        const response = await fetch(BOT_API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const result = await response.json();
+        if (response.ok) {
+          statusMsg.innerText = '✅ Disparo iniciado no bot com sucesso!';
+          statusMsg.style.color = '#22c55e';
+        } else {
+          statusMsg.innerText = `❌ Erro: ${result.error || 'Falha ao iniciar'}`;
+          statusMsg.style.color = '#ef4444';
+        }
+      } catch (err) {
+        statusMsg.innerText = '❌ Não foi possível conectar ao bot local. Certifique-se de que o bot está ligado no PC!';
+        statusMsg.style.color = '#ef4444';
+      }
+    });
+  </script>
+</body>
+</html>
