@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CapimHop — Verificação humana para Discord</title>
+<meta name="description" content="Proteja seu servidor Discord com verificação em um clique, anti-raid e canal anti-spam automático.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* ============ BASE ============ */
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#050507;
+    --bg-soft:#0b0b0f;
+    --text:#ffffff;
+    --muted:rgba(255,255,255,.62);
+    --muted-2:rgba(255,255,255,.42);
+    --glass:rgba(255,255,255,.05);
+    --glass-2:rgba(255,255,255,.08);
+    --stroke:rgba(255,255,255,.10);
+    --stroke-2:rgba(255,255,255,.16);
+    --radius:24px;
+    --radius-sm:14px;
+    --ease:cubic-bezier(.22,.9,.24,1);
+  }
+  html{scroll-behavior:smooth}
+  body{
+    font-family:'Inter',system-ui,-apple-system,sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    line-height:1.6;
+    overflow-x:hidden;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+    position:relative;
+  }
+
+  /* ============ FUNDO LÍQUIDO ============ */
+  .bg{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none}
+  .bg__blob{
+    position:absolute;border-radius:50%;filter:blur(100px);opacity:.55;
+    will-change:transform;
+  }
+  .bg__blob--1{
+    width:620px;height:620px;top:-180px;left:-140px;
+    background:radial-gradient(circle, rgba(255,255,255,.16), transparent 70%);
+    animation:drift1 26s ease-in-out infinite;
+  }
+  .bg__blob--2{
+    width:720px;height:720px;bottom:-260px;right:-200px;
+    background:radial-gradient(circle, rgba(255,255,255,.10), transparent 70%);
+    animation:drift2 32s ease-in-out infinite;
+  }
+  .bg__blob--3{
+    width:480px;height:480px;top:38%;left:52%;
+    background:radial-gradient(circle, rgba(255,255,255,.07), transparent 70%);
+    animation:drift3 24s ease-in-out infinite;
+  }
+  @keyframes drift1{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(80px,60px) scale(1.12)}}
+  @keyframes drift2{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-90px,-70px) scale(1.08)}}
+  @keyframes drift3{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-60px,50px) scale(1.15)}}
+
+  .bg__grain{
+    position:absolute;inset:0;opacity:.05;mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='.6'/></svg>");
+  }
+  .bg__vignette{
+    position:absolute;inset:0;
+    background:radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,.65) 100%);
+  }
+
+  /* ============ CONTAINER ============ */
+  .wrap{position:relative;z-index:1;width:100%;max-width:1180px;margin:0 auto;padding:0 26px}
+  section{scroll-margin-top:100px}
+
+  /* ============ GLASS ============ */
+  .glass{
+    background:linear-gradient(135deg, rgba(255,255,255,.07), rgba(255,255,255,.02));
+    backdrop-filter:blur(28px) saturate(160%);
+    -webkit-backdrop-filter:blur(28px) saturate(160%);
+    border:1px solid var(--stroke);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.14),
+      inset 0 -1px 0 rgba(255,255,255,.03),
+      0 30px 60px -30px rgba(0,0,0,.85);
+    position:relative;
+    overflow:hidden;
+  }
+  .glass::before{
+    content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+    background:radial-gradient(120% 80% at 20% 0%, rgba(255,255,255,.16), transparent 55%);
+    opacity:.9;transition:opacity .6s var(--ease);
+  }
+  .glass:hover::before{opacity:1}
+
+  /* ============ NAVBAR ============ */
+  .nav{
+    position:sticky;top:16px;z-index:100;margin:16px auto 0;
+    width:calc(100% - 32px);max-width:1180px;
+    border-radius:20px;padding:10px 12px 10px 22px;
+    display:flex;align-items:center;justify-content:space-between;gap:20px;
+    transition:background .4s var(--ease), border-color .4s var(--ease);
+  }
+  .logo{display:flex;align-items:center;gap:11px;font-weight:700;font-size:16px;letter-spacing:-.02em;text-decoration:none;color:#fff}
+  .logo__mark{
+    width:32px;height:32px;border-radius:10px;display:grid;place-items:center;
+    background:linear-gradient(150deg, #fff, rgba(255,255,255,.65));
+    color:#050507;
+    box-shadow:0 6px 20px -8px rgba(255,255,255,.5), inset 0 1px 0 rgba(255,255,255,.9);
+  }
+  .logo__mark svg{width:16px;height:16px}
+  .nav__links{display:flex;gap:6px;list-style:none;margin:0 auto 0 20px}
+  .nav__links a{
+    font-size:13.5px;font-weight:500;color:var(--muted);text-decoration:none;
+    padding:8px 14px;border-radius:10px;transition:all .3s var(--ease);
+  }
+  .nav__links a:hover{color:#fff;background:rgba(255,255,255,.06)}
+  .nav__actions{display:flex;align-items:center;gap:8px}
+
+  /* ============ BOTÕES ============ */
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:9px;
+    padding:11px 20px;border-radius:12px;font-size:14px;font-weight:600;
+    text-decoration:none;cursor:pointer;border:1px solid transparent;
+    transition:transform .35s var(--ease), box-shadow .35s var(--ease), background .35s var(--ease), border-color .35s var(--ease);
+    position:relative;overflow:hidden;white-space:nowrap;
+  }
+  .btn:active{transform:scale(.97)}
+  .btn--primary{
+    background:linear-gradient(180deg, #ffffff, #e6e6ea);
+    color:#050507;
+    box-shadow:0 12px 30px -12px rgba(255,255,255,.55), inset 0 1px 0 #fff;
+  }
+  .btn--primary:hover{transform:translateY(-2px);box-shadow:0 20px 40px -14px rgba(255,255,255,.7), inset 0 1px 0 #fff}
+  .btn--ghost{
+    background:rgba(255,255,255,.05);
+    border-color:var(--stroke);
+    color:#fff;backdrop-filter:blur(20px);
+  }
+  .btn--ghost:hover{background:rgba(255,255,255,.1);border-color:var(--stroke-2);transform:translateY(-2px)}
+  .btn--lg{padding:15px 26px;font-size:15px;border-radius:14px}
+
+  /* ============ HERO ============ */
+  .hero{padding:110px 0 90px}
+  .hero__grid{display:grid;grid-template-columns:1.05fr .95fr;gap:70px;align-items:center}
+  .pill{
+    display:inline-flex;align-items:center;gap:9px;
+    padding:7px 14px;border-radius:999px;font-size:12.5px;font-weight:500;
+    color:var(--muted);background:rgba(255,255,255,.05);
+    border:1px solid var(--stroke);backdrop-filter:blur(20px);
+    margin-bottom:26px;
+  }
+  .pill__dot{width:6px;height:6px;border-radius:50%;background:#fff;box-shadow:0 0 0 0 rgba(255,255,255,.6);animation:pulse 2.4s infinite}
+  @keyframes pulse{
+    0%{box-shadow:0 0 0 0 rgba(255,255,255,.5)}
+    70%{box-shadow:0 0 0 9px rgba(255,255,255,0)}
+    100%{box-shadow:0 0 0 0 rgba(255,255,255,0)}
+  }
+  h1{
+    font-size:clamp(2.4rem, 5vw, 3.6rem);
+    font-weight:700;letter-spacing:-.04em;line-height:1.04;
+    margin-bottom:24px;
+  }
+  h1 em{
+    font-style:normal;
+    background:linear-gradient(180deg, #fff 30%, rgba(255,255,255,.35));
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  .lead{font-size:16.5px;color:var(--muted);max-width:520px;margin-bottom:34px;font-weight:400}
+  .hero__cta{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:26px}
+  .hero__note{display:flex;align-items:center;gap:9px;font-size:13px;color:var(--muted-2)}
+  .hero__note svg{width:15px;height:15px;color:#fff;flex-shrink:0;opacity:.75}
+
+  /* ============ MOCK DISCORD ============ */
+  .hero__visual{position:relative}
+  .mock{
+    border-radius:var(--radius);padding:20px;
+    animation:float 7s ease-in-out infinite;
+  }
+  @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+
+  .mock__top{
+    display:flex;align-items:center;gap:9px;
+    padding-bottom:14px;margin-bottom:16px;
+    border-bottom:1px solid rgba(255,255,255,.07);
+  }
+  .mock__dot{width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,.18)}
+  .mock__dot:nth-child(2){background:rgba(255,255,255,.12)}
+  .mock__dot:nth-child(3){background:rgba(255,255,255,.09)}
+  .mock__chan{
+    margin-left:8px;font-size:12.5px;color:var(--muted);
+    display:flex;align-items:center;gap:6px;
+  }
+  .mock__chan svg{width:13px;height:13px;opacity:.7}
+
+  .mock__msg{display:flex;gap:13px;margin-bottom:14px}
+  .mock__avatar{
+    width:38px;height:38px;border-radius:11px;flex-shrink:0;
+    display:grid;place-items:center;
+    background:linear-gradient(150deg, #fff, rgba(255,255,255,.7));
+    color:#050507;
+    box-shadow:0 8px 22px -8px rgba(255,255,255,.6), inset 0 1px 0 rgba(255,255,255,.9);
+  }
+  .mock__avatar svg{width:18px;height:18px}
+  .mock__body{flex:1;min-width:0}
+  .mock__head{display:flex;align-items:center;gap:7px;margin-bottom:8px;flex-wrap:wrap}
+  .mock__name{font-weight:600;font-size:14px;color:#fff}
+  .mock__tag{
+    font-size:9.5px;font-weight:700;letter-spacing:.05em;
+    background:#fff;color:#050507;padding:2px 5px;border-radius:4px;line-height:1.5;
+  }
+  .mock__time{font-size:11.5px;color:var(--muted-2)}
+
+  .mock__card{
+    background:rgba(255,255,255,.03);
+    border:1px solid rgba(255,255,255,.08);
+    border-radius:12px;padding:15px 16px;
+    backdrop-filter:blur(20px);
+  }
+  .mock__card--accent{border-left:3px solid #fff}
+  .mock__card h4{font-size:14px;font-weight:600;color:#fff;margin-bottom:7px;display:flex;align-items:center;gap:8px}
+  .mock__card h4 svg{width:15px;height:15px}
+  .mock__card p{font-size:13px;color:var(--muted);line-height:1.55}
+  .mock__card p strong{color:#fff;font-weight:600}
+  .mock__divider{height:1px;background:rgba(255,255,255,.07);margin:12px 0}
+  .mock__small{font-size:11.5px;color:var(--muted-2);margin-bottom:11px}
+  .mock__btn{
+    display:inline-flex;align-items:center;gap:8px;
+    background:linear-gradient(180deg,#fff,#e2e2e8);color:#050507;
+    font-size:13px;font-weight:600;padding:9px 16px;border-radius:8px;
+    border:none;box-shadow:0 8px 20px -10px rgba(255,255,255,.6), inset 0 1px 0 #fff;
+    cursor:default;
+  }
+  .mock__btn svg{width:14px;height:14px}
+  .mock__btn--ghost{
+    background:rgba(255,255,255,.06);color:#fff;
+    border:1px solid var(--stroke);box-shadow:none;
+  }
+  .mock__row{display:flex;gap:8px;flex-wrap:wrap}
+
+  .chip{
+    position:absolute;z-index:2;
+    display:flex;align-items:center;gap:8px;
+    padding:10px 14px;border-radius:14px;
+    font-size:12.5px;font-weight:500;color:#fff;
+    background:linear-gradient(135deg, rgba(255,255,255,.11), rgba(255,255,255,.05));
+    backdrop-filter:blur(28px) saturate(160%);
+    -webkit-backdrop-filter:blur(28px) saturate(160%);
+    border:1px solid rgba(255,255,255,.14);
+    box-shadow:0 20px 40px -20px rgba(0,0,0,.9), inset 0 1px 0 rgba(255,255,255,.18);
+  }
+  .chip svg{width:14px;height:14px}
+  .chip--tr{top:-16px;right:-16px;animation:float 6s ease-in-out infinite}
+  .chip--bl{bottom:-16px;left:-18px;animation:float 6s ease-in-out .8s infinite}
+
+  /* ============ STATS ============ */
+  .stats{padding:20px 0 100px}
+  .stats__grid{
+    border-radius:var(--radius);padding:36px 30px;
+    display:grid;grid-template-columns:repeat(4,1fr);gap:20px;text-align:center;
+  }
+  .stat__num{
+    font-size:clamp(1.6rem,3vw,2.2rem);font-weight:700;letter-spacing:-.04em;
+    background:linear-gradient(180deg,#fff,rgba(255,255,255,.55));
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  .stat__label{font-size:12.5px;color:var(--muted-2);margin-top:4px}
+
+  /* ============ SECTION ============ */
+  .section{padding:90px 0}
+  .head{text-align:center;max-width:660px;margin:0 auto 60px}
+  .eyebrow{
+    font-size:11.5px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--muted-2);margin-bottom:14px;
+  }
+  h2{font-size:clamp(1.75rem,3.4vw,2.4rem);letter-spacing:-.035em;line-height:1.14;font-weight:700;margin-bottom:14px}
+  .head p{color:var(--muted);font-size:16px}
+
+  /* ============ FEATURES ============ */
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+  .card{
+    border-radius:var(--radius);padding:26px;
+    transition:transform .5s var(--ease), border-color .4s var(--ease);
+  }
+  .card:hover{transform:translateY(-4px);border-color:var(--stroke-2)}
+  .card__icon{
+    width:44px;height:44px;border-radius:12px;display:grid;place-items:center;
+    background:rgba(255,255,255,.06);border:1px solid var(--stroke);
+    color:#fff;margin-bottom:18px;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.1);
+  }
+  .card__icon svg{width:20px;height:20px}
+  .card h3{font-size:15.5px;font-weight:600;margin-bottom:8px;letter-spacing:-.01em}
+  .card p{font-size:14px;color:var(--muted);line-height:1.65}
+
+  /* ============ FLOW ============ */
+  .flow{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .flow__step{padding:26px;border-radius:var(--radius);position:relative}
+  .flow__num{
+    width:40px;height:40px;border-radius:12px;display:grid;place-items:center;
+    font-weight:700;font-size:14px;color:#050507;
+    background:linear-gradient(150deg,#fff,rgba(255,255,255,.75));
+    box-shadow:0 10px 24px -10px rgba(255,255,255,.5), inset 0 1px 0 #fff;
+    margin-bottom:18px;
+  }
+  .flow__step h3{font-size:15.5px;font-weight:600;margin-bottom:8px}
+  .flow__step p{font-size:13.5px;color:var(--muted);line-height:1.65}
+  .flow__step code{
+    font-family:ui-monospace,Menlo,monospace;font-size:12px;
+    background:rgba(255,255,255,.08);padding:2px 6px;border-radius:6px;
+    color:#fff;border:1px solid var(--stroke);
+  }
+
+  /* ============ CMDS ============ */
+  .cmds{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:10px}
+  .cmd{
+    display:flex;align-items:center;gap:14px;padding:14px 18px;
+    border-radius:14px;
+    transition:transform .35s var(--ease), border-color .35s var(--ease);
+  }
+  .cmd:hover{transform:translateX(4px);border-color:var(--stroke-2)}
+  .cmd code{
+    font-family:ui-monospace,Menlo,monospace;font-size:12.5px;font-weight:600;
+    color:#050507;background:#fff;padding:5px 10px;border-radius:7px;white-space:nowrap;
+    box-shadow:inset 0 -1px 0 rgba(0,0,0,.08);
+  }
+  .cmd span{font-size:13.5px;color:var(--muted)}
+
+  /* ============ FAQ ============ */
+  .faq{max-width:740px;margin:0 auto;display:flex;flex-direction:column;gap:10px}
+  .faq__item{border-radius:16px;overflow:hidden;transition:border-color .35s var(--ease)}
+  .faq__item.open{border-color:var(--stroke-2)}
+  .faq__q{
+    width:100%;display:flex;align-items:center;justify-content:space-between;gap:18px;
+    padding:18px 22px;background:none;border:none;color:#fff;
+    font-family:inherit;font-size:14.5px;font-weight:500;text-align:left;cursor:pointer;
+  }
+  .faq__icon{
+    width:24px;height:24px;flex-shrink:0;border-radius:8px;display:grid;place-items:center;
+    background:rgba(255,255,255,.06);border:1px solid var(--stroke);
+    transition:transform .4s var(--ease), background .4s var(--ease);
+  }
+  .faq__icon svg{width:12px;height:12px}
+  .faq__item.open .faq__icon{transform:rotate(45deg);background:#fff;color:#050507;border-color:#fff}
+  .faq__a{display:grid;grid-template-rows:0fr;transition:grid-template-rows .4s var(--ease)}
+  .faq__item.open .faq__a{grid-template-rows:1fr}
+  .faq__a>div{overflow:hidden}
+  .faq__a p{padding:0 22px 20px;font-size:13.5px;color:var(--muted);line-height:1.7}
+
+  /* ============ CTA ============ */
+  .cta{
+    border-radius:28px;padding:72px 32px;text-align:center;
+    position:relative;overflow:hidden;
+  }
+  .cta::after{
+    content:'';position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(600px 300px at 50% 0%, rgba(255,255,255,.14), transparent 70%);
+  }
+  .cta h2{position:relative;z-index:1;margin-bottom:14px}
+  .cta p{position:relative;z-index:1;color:var(--muted);font-size:16px;max-width:520px;margin:0 auto 30px}
+  .cta__btns{position:relative;z-index:1;display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+
+  /* ============ FOOTER ============ */
+  footer{position:relative;z-index:1;padding:60px 0 40px;margin-top:80px;border-top:1px solid var(--stroke)}
+  .footer__grid{display:flex;justify-content:space-between;gap:40px;flex-wrap:wrap;margin-bottom:36px}
+  .footer__brand{max-width:280px}
+  .footer__brand p{font-size:13.5px;color:var(--muted-2);margin-top:14px;line-height:1.65}
+  .footer__cols{display:flex;gap:60px;flex-wrap:wrap}
+  .footer__col h4{font-size:11.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#fff;margin-bottom:16px}
+  .footer__col ul{list-style:none;display:flex;flex-direction:column;gap:10px}
+  .footer__col a{font-size:13.5px;color:var(--muted-2);text-decoration:none;transition:color .3s}
+  .footer__col a:hover{color:#fff}
+  .footer__bottom{
+    border-top:1px solid var(--stroke);padding-top:22px;
+    display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;
+    font-size:12.5px;color:var(--muted-2);
+  }
+
+  /* ============ REVEAL ============ */
+  .reveal{opacity:0;transform:translateY(24px);transition:opacity .9s var(--ease),transform .9s var(--ease)}
+  .reveal.in{opacity:1;transform:none}
+
+  /* ============ RESPONSIVO ============ */
+  @media (max-width:980px){
+    .hero__grid{grid-template-columns:1fr;gap:56px}
+    .lead{max-width:none}
+    .flow{grid-template-columns:1fr}
+    .stats__grid{grid-template-columns:repeat(2,1fr);gap:28px 20px}
+  }
+  @media (max-width:760px){
+    .nav{padding:8px 10px 8px 16px}
+    .nav__links{
+      position:absolute;top:calc(100% + 8px);left:0;right:0;
+      flex-direction:column;align-items:stretch;gap:0;margin:0;
+      background:rgba(10,10,14,.95);backdrop-filter:blur(30px);
+      border:1px solid var(--stroke);border-radius:16px;
+      padding:8px;display:none;
+    }
+    .nav__links.open{display:flex}
+    .nav__links a{padding:13px 14px;font-size:14px}
+    .nav__actions .btn--ghost{display:none}
+    .hero{padding:70px 0 60px}
+    .section{padding:70px 0}
+    .cta{padding:56px 22px;border-radius:22px}
+    .footer__cols{gap:36px}
+    .chip--tr{top:-12px;right:-8px}
+    .chip--bl{bottom:-12px;left:-8px}
+  }
+</style>
+</head>
+<body>
+
+<!-- Fundo líquido -->
+<div class="bg" aria-hidden="true">
+  <div class="bg__blob bg__blob--1"></div>
+  <div class="bg__blob bg__blob--2"></div>
+  <div class="bg__blob bg__blob--3"></div>
+  <div class="bg__grain"></div>
+  <div class="bg__vignette"></div>
+</div>
+
+<!-- NAVBAR -->
+<nav class="nav glass" id="nav">
+  <a href="#" class="logo">
+    <span class="logo__mark">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        <path d="m9 12 2 2 4-4"/>
+      </svg>
+    </span>
+    CapimHop
+  </a>
+
+  <ul class="nav__links" id="menu">
+    <li><a href="#recursos">Recursos</a></li>
+    <li><a href="#fluxo">Fluxo</a></li>
+    <li><a href="#comandos">Comandos</a></li>
+    <li><a href="#faq">FAQ</a></li>
+  </ul>
+
+  <div class="nav__actions">
+    <a href="#" class="btn btn--ghost">Entrar</a>
+    <a href="#" class="btn btn--primary">Adicionar</a>
+    <button class="nav__toggle" id="toggle" aria-label="Menu" style="display:none;width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,.05);border:1px solid var(--stroke);color:#fff;cursor:pointer;place-items:center">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </button>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero__grid">
+      <div class="hero__content reveal">
+        <span class="pill"><span class="pill__dot"></span> Protegendo milhares de servidores</span>
+        <h1>Só humanos entram.<br><em>O resto fica de fora.</em></h1>
+        <p class="lead">
+          Verificação em um clique, canal anti-spam automático e um botão de ocultar
+          que se resolve sozinho depois de 3 semanas. Sem dor de cabeça.
+        </p>
+        <div class="hero__cta">
+          <a href="#" class="btn btn--primary btn--lg">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M20.3 4.4A19.8 19.8 0 0 0 15.4 3l-.2.4c1.7.4 2.5.9 3.3 1.4a14 14 0 0 0-5.7-1.2c-2 0-4 .5-5.7 1.2.8-.5 1.7-1 3.3-1.4L10.2 3a19.8 19.8 0 0 0-4.9 1.4C2.2 8.6 1.4 12.8 1.8 17a20 20 0 0 0 6 3l1.3-1.8c-.7-.3-1.4-.6-2-1l.5-.4a14.2 14.2 0 0 0 12.2 0l.5.4c-.6.4-1.3.7-2 1L19.6 20a20 20 0 0 0 6-3c.5-4.8-.8-9-3.3-12.6zM8.7 14.6c-1.2 0-2.2-1.1-2.2-2.4S7.5 9.8 8.7 9.8s2.2 1.1 2.2 2.4-1 2.4-2.2 2.4zm6.6 0c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4 2.2 1.1 2.2 2.4-1 2.4-2.2 2.4z"/></svg>
+            Adicionar ao Discord
+          </a>
+          <a href="#fluxo" class="btn btn--ghost btn--lg">Ver o fluxo</a>
+        </div>
+        <div class="hero__note">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5L20 7"/></svg>
+          Grátis · Configuração em 2 minutos · Sem cartão
+        </div>
+      </div>
+
+      <div class="hero__visual reveal">
+        <div class="chip chip--tr">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5L20 7"/></svg>
+          Verificado
+        </div>
+        <div class="chip chip--bl">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="m6 6 12 12"/></svg>
+          Anti-spam ativo
+        </div>
+
+        <div class="mock glass">
+          <div class="mock__top">
+            <span class="mock__dot"></span>
+            <span class="mock__dot"></span>
+            <span class="mock__dot"></span>
+            <span class="mock__chan">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/></svg>
+              #verificação
+            </span>
+          </div>
+
+          <div class="mock__msg">
+            <div class="mock__avatar">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+            </div>
+            <div class="mock__body">
+              <div class="mock__head">
+                <span class="mock__name">CapimHop</span>
+                <span class="mock__tag">BOT</span>
+                <span class="mock__time">agora</span>
+              </div>
+              <div class="mock__card mock__card--accent">
+                <h4>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                  Faça a verificação
+                </h4>
+                <p>Clique abaixo para liberar o acesso ao servidor. Leva menos de 5 segundos.</p>
+                <div class="mock__divider"></div>
+                <button class="mock__btn">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5L20 7"/></svg>
+                  Verificar agora
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STATS -->
+  <section class="stats">
+    <div class="stats__grid glass reveal">
+      <div>
+        <div class="stat__num"><span data-count="12400" data-suffix="+">0</span></div>
+        <div class="stat__label">Servidores protegidos</div>
+      </div>
+      <div>
+        <div class="stat__num"><span data-count="4200000">0</span></div>
+        <div class="stat__label">Usuários verificados</div>
+      </div>
+      <div>
+        <div class="stat__num"><span data-count="99.9" data-suffix="%">0</span></div>
+        <div class="stat__label">Uptime últimos 90 dias</div>
+      </div>
+      <div>
+        <div class="stat__num"><span data-count="180" data-suffix="ms">0</span></div>
+        <div class="stat__label">Latência média</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RECURSOS -->
+  <section class="section" id="recursos">
+    <div class="head reveal">
+      <div class="eyebrow">Recursos</div>
+      <h2>Tudo que seu servidor precisa</h2>
+      <p>Sem plugins, sem planilhas, sem dor de cabeça. O CapimHop cuida da portaria para você.</p>
+    </div>
+    <div class="grid">
+      <article class="card glass reveal">
+        <div class="card__icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        </div>
+        <h3>Verificação em 1 clique</h3>
+        <p>O membro confirma em segundos e recebe o cargo na hora. Sem captcha, sem fricção.</p>
+      </article>
+
+      <article class="card glass reveal">
+        <div class="card__icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></svg>
+        </div>
+        <h3>Anti-raid automático</h3>
+        <p>Detecta entradas em massa e ativa lockdown sozinho até a situação acalmar.</p>
+      </article>
+
+      <article class="card glass reveal">
+        <div class="card__icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        </div>
+        <h3>Detecção de contas falsas</h3>
+        <p>Analisa idade da conta, avatar padrão e nome suspeito para barrar alts antes do estrago.</p>
+      </article>
+
+      <article class="card glass reveal">
+        <div class="card__icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/><circle cx="12" cy="12" r="10"/></svg>
+        </div>
+        <h3>Canal anti-spam</h3>
+        <p>Um canal travado no topo avisa: quem mandar mensagem toma kick. Ninguém quebra a regra.</p>
+      </article>
+
+      <article class="card glass reveal">
+        <div class="card__icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><path d="m1 1 22 22"/></svg>
+        </div>
+        <h3>Ocultar e desocultar</h3>
+        <p>O usuário pode esconder o canal. Se ficar 3 semanas inativo, o bot devolve automaticamente.</p>
+      </article>
+
+      <article class="card glass reveal">
+        <div class="card__icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h4"/></svg>
+        </div>
+        <h3>Logs completos</h3>
+        <p>Quem entrou, quem falhou, quem foi kickado — tudo em um canal de auditoria.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- FLUXO -->
+  <section class="section" id="fluxo">
+    <div class="head reveal">
+      <div class="eyebrow">Fluxo do setup</div>
+      <h2>Como o <code style="font-family:ui-monospace,monospace;font-size:.85em;background:rgba(255,255,255,.08);padding:3px 10px;border-radius:8px;border:1px solid var(--stroke)">/setup</code> funciona</h2>
+      <p>Você escolhe, o bot monta. Em segundos o servidor fica seguro.</p>
+    </div>
+
+    <div class="flow">
+      <div class="flow__step glass reveal">
+        <div class="flow__num">1</div>
+        <h3>Cria ou escolhe o canal</h3>
+        <p>Você indica um canal existente ou deixa o bot criar um. Opcionalmente, ele apaga todas as mensagens antigas antes de enviar.</p>
+      </div>
+      <div class="flow__step glass reveal">
+        <div class="flow__num">2</div>
+        <h3>Mensagem de verificação</h3>
+        <p>Envia <code>Faça a verificação</code> com um botão. Ao clicar, o membro recebe o cargo e ganha acesso ao canal anti-spam.</p>
+      </div>
+      <div class="flow__step glass reveal">
+        <div class="flow__num">3</div>
+        <h3>Canal anti-spam no topo</h3>
+        <p>O canal sobe para o topo, recebe um aviso: quem mandar mensagem <strong>toma kick</strong>, e ganha um botão <code>Ocultar canal</code>.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- COMANDOS -->
+  <section class="section" id="comandos">
+    <div class="head reveal">
+      <div class="eyebrow">Comandos</div>
+      <h2>Controle na ponta dos dedos</h2>
+      <p>Slash commands em português, sem decoreba.</p>
+    </div>
+    <div class="cmds">
+      <div class="cmd glass reveal"><code>/setup</code><span>Cria/escolhe o canal e envia a verificação</span></div>
+      <div class="cmd glass reveal"><code>/config</code><span>Painel interativo de configuração</span></div>
+      <div class="cmd glass reveal"><code>/verify</code><span>Verifica um membro manualmente</span></div>
+      <div class="cmd glass reveal"><code>/status</code><span>Estatísticas e status da proteção</span></div>
+      <div class="cmd glass reveal"><code>/whitelist</code><span>Libera cargo ou usuário da verificação</span></div>
+      <div class="cmd glass reveal"><code>/raidmode</code><span>Ativa ou desativa o lockdown</span></div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="section" id="faq">
+    <div class="head reveal">
+      <div class="eyebrow">Dúvidas</div>
+      <h2>Perguntas frequentes</h2>
+    </div>
+    <div class="faq" id="faq-list">
+      <div class="faq__item glass reveal">
+        <button class="faq__q" aria-expanded="false">
+          O CapimHop é gratuito?
+          <span class="faq__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span>
+        </button>
+        <div class="faq__a"><div><p>Sim. Verificação por botão, canal anti-spam, cargos automáticos e logs básicos estão no plano gratuito. O Premium adiciona captcha por imagem, múltiplos canais e suporte prioritário.</p></div></div>
+      </div>
+
+      <div class="faq__item glass reveal">
+        <button class="faq__q" aria-expanded="false">
+          Como funciona o botão de ocultar canal?
+          <span class="faq__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span>
+        </button>
+        <div class="faq__a"><div><p>Depois de verificado, o usuário vê um botão <strong>Ocultar canal</strong>. Ele some da lista dele até que o usuário fique <strong>3 semanas sem atividade</strong> — aí o bot devolve o canal automaticamente, para garantir que ninguém perca avisos importantes.</p></div></div>
+      </div>
+
+      <div class="faq__item glass reveal">
+        <button class="faq__q" aria-expanded="false">
+          O canal anti-spam realmente dá kick?
+          <span class="faq__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span>
+        </button>
+        <div class="faq__a"><div><p>Sim. Quem enviar qualquer mensagem nele é removido automaticamente — é uma medida anti-spam pensada para canais de aviso. O usuário é avisado pela embed antes de enviar qualquer coisa.</p></div></div>
+      </div>
+
+      <div class="faq__item glass reveal">
+        <button class="faq__q" aria-expanded="false">
+          Preciso saber programar?
+          <span class="faq__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span>
+        </button>
+        <div class="faq__a"><div><p>Não. Tudo é feito por menus interativos dentro do Discord. Você escolhe as opções clicando em botões — nada de código, tokens ou arquivos.</p></div></div>
+      </div>
+
+      <div class="faq__item glass reveal">
+        <button class="faq__q" aria-expanded="false">
+          Funciona junto com outros bots?
+          <span class="faq__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span>
+        </button>
+        <div class="faq__a"><div><p>Sim. O CapimHop só precisa de permissão para gerenciar canais, cargos e expulsar membros. Todo o resto do seu setup continua funcionando.</p></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="section" style="padding-top:0">
+    <div class="cta glass reveal">
+      <h2>Pronto para blindar seu servidor?</h2>
+      <p>Junte-se às comunidades que já bloquearam bots, raids e contas falsas com o CapimHop.</p>
+      <div class="cta__btns">
+        <a href="#" class="btn btn--primary btn--lg">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M20.3 4.4A19.8 19.8 0 0 0 15.4 3l-.2.4c1.7.4 2.5.9 3.3 1.4a14 14 0 0 0-5.7-1.2c-2 0-4 .5-5.7 1.2.8-.5 1.7-1 3.3-1.4L10.2 3a19.8 19.8 0 0 0-4.9 1.4C2.2 8.6 1.4 12.8 1.8 17a20 20 0 0 0 6 3l1.3-1.8c-.7-.3-1.4-.6-2-1l.5-.4a14.2 14.2 0 0 0 12.2 0l.5.4c-.6.4-1.3.7-2 1L19.6 20a20 20 0 0 0 6-3c.5-4.8-.8-9-3.3-12.6zM8.7 14.6c-1.2 0-2.2-1.1-2.2-2.4S7.5 9.8 8.7 9.8s2.2 1.1 2.2 2.4-1 2.4-2.2 2.4zm6.6 0c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4 2.2 1.1 2.2 2.4-1 2.4-2.2 2.4z"/></svg>
+          Adicionar ao Discord — é grátis
+        </a>
+        <a href="#faq" class="btn btn--ghost btn--lg">Tirar dúvidas</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="footer__grid">
+      <div class="footer__brand">
+        <a href="#" class="logo">
+          <span class="logo__mark">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+          </span>
+          CapimHop
+        </a>
+        <p>A portaria do seu servidor Discord. Verificação humana, anti-spam e tranquilidade — 24h por dia.</p>
+      </div>
+      <div class="footer__cols">
+        <div class="footer__col">
+          <h4>Produto</h4>
+          <ul><li><a href="#recursos">Recursos</a></li><li><a href="#comandos">Comandos</a></li><li><a href="#">Premium</a></li><li><a href="#">Status</a></li></ul>
+        </div>
+        <div class="footer__col">
+          <h4>Suporte</h4>
+          <ul><li><a href="#">Servidor de ajuda</a></li><li><a href="#faq">FAQ</a></li><li><a href="#">Documentação</a></li></ul>
+        </div>
+        <div class="footer__col">
+          <h4>Legal</h4>
+          <ul><li><a href="#">Termos</a></li><li><a href="#">Privacidade</a></li></ul>
+        </div>
+      </div>
+    </div>
+    <div class="footer__bottom">
+      <span>© 2026 CapimHop. Todos os direitos reservados.</span>
+      <span>Não afiliado à Discord Inc.</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){
+  'use strict';
+
+  /* Navbar: leve alteração ao rolar */
+  const nav = document.getElementById('nav');
+  window.addEventListener('scroll', () => {
+    nav.style.background = window.scrollY > 30
+      ? 'linear-gradient(135deg, rgba(255,255,255,.09), rgba(255,255,255,.03))'
+      : 'linear-gradient(135deg, rgba(255,255,255,.07), rgba(255,255,255,.02))';
+  }, { passive: true });
+
+  /* Menu mobile (aparece em telas pequenas) */
+  const toggle = document.getElementById('toggle');
+  const menu = document.getElementById('menu');
+  const mq = window.matchMedia('(max-width: 760px)');
+
+  function syncToggle(){
+    toggle.style.display = mq.matches ? 'grid' : 'none';
+    if (!mq.matches) menu.classList.remove('open');
+  }
+  mq.addEventListener('change', syncToggle);
+  syncToggle();
+
+  toggle.addEventListener('click', () => menu.classList.toggle('open'));
+  menu.querySelectorAll('a').forEach(a => a.addEventListener('click', () => menu.classList.remove('open')));
+
+  /* Reveal on scroll */
+  const revealEls = document.querySelectorAll('.reveal');
+  if ('IntersectionObserver' in window){
+    const obs = new IntersectionObserver((entries, o) => {
+      entries.forEach(e => {
+        if (!e.isIntersecting) return;
+        e.target.classList.add('in');
+        o.unobserve(e.target);
+      });
+    }, { threshold: .12, rootMargin: '0px 0px -40px 0px' });
+    revealEls.forEach((el, i) => {
+      el.style.transitionDelay = (i % 4) * 80 + 'ms';
+      obs.observe(el);
+    });
+  } else {
+    revealEls.forEach(el => el.classList.add('in'));
+  }
+
+  /* Contadores */
+  const counters = document.querySelectorAll('[data-count]');
+  const easeOut = p => 1 - Math.pow(1 - p, 3);
+  function animate(el){
+    const target = parseFloat(el.dataset.count);
+    const suffix = el.dataset.suffix || '';
+    const dur = 1600;
+    const start = performance.now();
+    const fmt = v => target % 1 !== 0
+      ? v.toFixed(1).replace('.', ',')
+      : Math.round(v).toLocaleString('pt-BR');
+    function tick(now){
+      const p = Math.min((now - start) / dur, 1);
+      el.textContent = fmt(target * easeOut(p)) + suffix;
+      if (p < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }
+  if ('IntersectionObserver' in window){
+    const obs = new IntersectionObserver((entries, o) => {
+      entries.forEach(e => {
+        if (!e.isIntersecting) return;
+        animate(e.target);
+        o.unobserve(e.target);
+      });
+    }, { threshold: .5 });
+    counters.forEach(c => obs.observe(c));
+  } else counters.forEach(animate);
+
+  /* FAQ accordion */
+  document.querySelectorAll('.faq__item').forEach(item => {
+    const btn = item.querySelector('.faq__q');
+    btn.addEventListener('click', () => {
+      const open = item.classList.contains('open');
+      document.querySelectorAll('.faq__item').forEach(o => {
+        o.classList.remove('open');
+        o.querySelector('.faq__q').setAttribute('aria-expanded', 'false');
+      });
+      if (!open){
+        item.classList.add('open');
+        btn.setAttribute('aria-expanded', 'true');
+      }
+    });
+  });
+})();
+</script>
+</body>
+</html>
