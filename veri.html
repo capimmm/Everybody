@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CapimHop — Verificação</title>
+<meta name="description" content="Verifique sua conta Discord no CapimHop.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ============ BASE ============ */
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#050507;
+    --text:#ffffff;
+    --muted:rgba(255,255,255,.62);
+    --muted-2:rgba(255,255,255,.40);
+    --stroke:rgba(255,255,255,.10);
+    --stroke-2:rgba(255,255,255,.18);
+    --ease:cubic-bezier(.22,.9,.24,1);
+  }
+  html,body{height:100%}
+  body{
+    font-family:'Inter',system-ui,-apple-system,sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+    min-height:100dvh;
+    display:grid;
+    place-items:center;
+    padding:32px 20px;
+    position:relative;
+  }
+
+  /* ============ FUNDO LÍQUIDO ============ */
+  .bg{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none}
+  .bg__blob{position:absolute;border-radius:50%;filter:blur(100px);opacity:.55;will-change:transform}
+  .bg__blob--1{
+    width:620px;height:620px;top:-180px;left:-140px;
+    background:radial-gradient(circle, rgba(255,255,255,.16), transparent 70%);
+    animation:drift1 26s ease-in-out infinite;
+  }
+  .bg__blob--2{
+    width:700px;height:700px;bottom:-240px;right:-200px;
+    background:radial-gradient(circle, rgba(255,255,255,.10), transparent 70%);
+    animation:drift2 32s ease-in-out infinite;
+  }
+  .bg__blob--3{
+    width:440px;height:440px;top:42%;left:54%;
+    background:radial-gradient(circle, rgba(255,255,255,.07), transparent 70%);
+    animation:drift3 24s ease-in-out infinite;
+  }
+  @keyframes drift1{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(70px,60px) scale(1.12)}}
+  @keyframes drift2{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-80px,-60px) scale(1.08)}}
+  @keyframes drift3{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-50px,40px) scale(1.15)}}
+  .bg__grain{
+    position:absolute;inset:0;opacity:.05;mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='.6'/></svg>");
+  }
+  .bg__vignette{
+    position:absolute;inset:0;
+    background:radial-gradient(ellipse at center, transparent 42%, rgba(0,0,0,.7) 100%);
+  }
+
+  /* ============ CARD ============ */
+  .stage{position:relative;z-index:1;width:100%;max-width:480px}
+  .card{
+    position:relative;
+    border-radius:28px;
+    padding:44px 36px 40px;
+    background:linear-gradient(135deg, rgba(255,255,255,.075), rgba(255,255,255,.022));
+    backdrop-filter:blur(30px) saturate(160%);
+    -webkit-backdrop-filter:blur(30px) saturate(160%);
+    border:1px solid var(--stroke);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.16),
+      inset 0 -1px 0 rgba(255,255,255,.03),
+      0 40px 80px -40px rgba(0,0,0,.95);
+    overflow:hidden;
+    animation:cardIn .9s var(--ease) both;
+  }
+  .card::before{
+    content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+    background:radial-gradient(120% 80% at 20% 0%, rgba(255,255,255,.18), transparent 55%);
+  }
+  @keyframes cardIn{
+    from{opacity:0;transform:translateY(20px) scale(.98)}
+    to{opacity:1;transform:none}
+  }
+
+  /* ============ MARCA ============ */
+  .brand{
+    display:flex;align-items:center;justify-content:center;gap:10px;
+    margin-bottom:30px;position:relative;z-index:1;
+  }
+  .brand__mark{
+    width:34px;height:34px;border-radius:11px;display:grid;place-items:center;
+    background:linear-gradient(150deg, #fff, rgba(255,255,255,.7));
+    color:#050507;
+    box-shadow:0 8px 22px -8px rgba(255,255,255,.5), inset 0 1px 0 rgba(255,255,255,.95);
+  }
+  .brand__mark svg{width:17px;height:17px}
+  .brand__name{font-weight:600;font-size:15px;letter-spacing:-.015em}
+
+  /* ============ ESTADOS ============ */
+  .state{
+    position:relative;z-index:1;
+    text-align:center;
+    animation:stateIn .55s var(--ease) both;
+  }
+  .state[hidden]{display:none}
+  @keyframes stateIn{
+    from{opacity:0;transform:translateY(10px)}
+    to{opacity:1;transform:none}
+  }
+
+  .state h1{
+    font-size:22px;font-weight:600;letter-spacing:-.025em;
+    margin-bottom:10px;line-height:1.25;
+  }
+  .state p{
+    font-size:14px;color:var(--muted);line-height:1.65;
+    max-width:340px;margin:0 auto;
+  }
+
+  /* ============ ÍCONES DE ESTADO ============ */
+  .icon{
+    width:64px;height:64px;border-radius:20px;
+    display:grid;place-items:center;margin:0 auto 22px;
+    background:rgba(255,255,255,.06);
+    border:1px solid var(--stroke);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.12);
+  }
+  .icon svg{width:28px;height:28px;color:#fff}
+  .icon--success{
+    background:linear-gradient(150deg, #fff, rgba(255,255,255,.8));
+    border-color:rgba(255,255,255,.35);
+    color:#050507;
+    box-shadow:0 14px 34px -12px rgba(255,255,255,.55), inset 0 1px 0 #fff;
+    animation:pop .6s var(--ease) both;
+  }
+  .icon--success svg{color:#050507;width:30px;height:30px}
+  .icon--error{
+    background:rgba(255,80,80,.10);
+    border-color:rgba(255,90,90,.30);
+    color:#ff9a9a;
+  }
+  @keyframes pop{
+    0%{transform:scale(.6);opacity:0}
+    60%{transform:scale(1.08)}
+    100%{transform:scale(1);opacity:1}
+  }
+
+  /* ============ BOTÃO ============ */
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:10px;
+    width:100%;padding:14px 22px;margin-top:24px;
+    border-radius:14px;font-size:14.5px;font-weight:600;
+    text-decoration:none;cursor:pointer;border:1px solid transparent;
+    font-family:inherit;
+    transition:transform .35s var(--ease), box-shadow .35s var(--ease), background .35s var(--ease), border-color .35s var(--ease);
+    position:relative;overflow:hidden;
+  }
+  .btn:active{transform:scale(.98)}
+  .btn--primary{
+    background:linear-gradient(180deg, #ffffff, #e6e6ea);
+    color:#050507;
+    box-shadow:0 14px 34px -14px rgba(255,255,255,.6), inset 0 1px 0 #fff;
+  }
+  .btn--primary:hover{transform:translateY(-2px);box-shadow:0 22px 44px -16px rgba(255,255,255,.75), inset 0 1px 0 #fff}
+  .btn--ghost{
+    background:rgba(255,255,255,.05);
+    border-color:var(--stroke);
+    color:#fff;
+    backdrop-filter:blur(20px);
+  }
+  .btn--ghost:hover{background:rgba(255,255,255,.1);border-color:var(--stroke-2);transform:translateY(-2px)}
+
+  /* Botão do Discord com a marca */
+  .btn--discord{
+    background:linear-gradient(180deg, #5865F2, #4752c4);
+    color:#fff;
+    box-shadow:0 14px 34px -14px rgba(88,101,242,.9), inset 0 1px 0 rgba(255,255,255,.25);
+  }
+  .btn--discord:hover{transform:translateY(-2px);box-shadow:0 22px 44px -16px rgba(88,101,242,1), inset 0 1px 0 rgba(255,255,255,.3)}
+  .btn--discord svg{width:19px;height:19px}
+
+  /* ============ HINT ============ */
+  .hint{
+    font-size:12.5px;color:var(--muted-2);
+    margin-top:14px;
+    display:flex;align-items:center;justify-content:center;gap:6px;
+  }
+  .hint svg{width:12px;height:12px;opacity:.7}
+
+  /* ============ SPINNER ============ */
+  .spinner{
+    width:52px;height:52px;border-radius:50%;
+    border:2.5px solid rgba(255,255,255,.10);
+    border-top-color:#fff;
+    margin:0 auto 24px;
+    animation:spin 1s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* ============ CAIXA DE CÓDIGO ============ */
+  .code-box{
+    margin-top:24px;
+    background:rgba(255,255,255,.04);
+    border:1px solid var(--stroke);
+    border-radius:14px;
+    padding:14px 14px 14px 16px;
+    display:flex;align-items:center;gap:12px;
+    backdrop-filter:blur(20px);
+  }
+  .code-box code{
+    flex:1;
+    font-family:ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size:12.5px;
+    color:#fff;
+    letter-spacing:.01em;
+    word-break:break-all;
+    text-align:left;
+    line-height:1.4;
+    max-height:80px;
+    overflow-y:auto;
+  }
+  .copy-btn{
+    flex-shrink:0;
+    display:inline-flex;align-items:center;gap:6px;
+    padding:8px 13px;border-radius:9px;
+    font-size:12px;font-weight:600;color:#050507;
+    background:linear-gradient(180deg,#fff,#e2e2e8);
+    border:none;cursor:pointer;font-family:inherit;
+    box-shadow:0 8px 20px -10px rgba(255,255,255,.55), inset 0 1px 0 #fff;
+    transition:transform .25s var(--ease), box-shadow .25s var(--ease);
+  }
+  .copy-btn:hover{transform:translateY(-1px);box-shadow:0 12px 26px -12px rgba(255,255,255,.7), inset 0 1px 0 #fff}
+  .copy-btn svg{width:13px;height:13px}
+  .copy-btn.copied{background:linear-gradient(180deg,#a7f3b5,#6ee085)}
+
+  /* ============ RODAPÉ ============ */
+  .foot{
+    position:relative;z-index:1;
+    text-align:center;font-size:11.5px;color:var(--muted-2);
+    margin-top:22px;letter-spacing:.01em;
+  }
+
+  /* ============ RESPONSIVO ============ */
+  @media (max-width:420px){
+    .card{padding:36px 24px 32px;border-radius:24px}
+    .state h1{font-size:20px}
+    .icon{width:56px;height:56px;border-radius:17px}
+    .icon svg{width:24px;height:24px}
+  }
+</style>
+</head>
+<body>
+
+<!-- Fundo -->
+<div class="bg" aria-hidden="true">
+  <div class="bg__blob bg__blob--1"></div>
+  <div class="bg__blob bg__blob--2"></div>
+  <div class="bg__blob bg__blob--3"></div>
+  <div class="bg__grain"></div>
+  <div class="bg__vignette"></div>
+</div>
+
+<main class="stage">
+  <div class="card" id="card">
+
+    <header class="brand">
+      <span class="brand__mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          <path d="m9 12 2 2 4-4"/>
+        </svg>
+      </span>
+      <span class="brand__name">CapimHop</span>
+    </header>
+
+    <!-- ESTADO 1: landing -->
+    <section class="state" data-state="landing">
+      <div class="icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          <path d="m9 12 2 2 4-4"/>
+        </svg>
+      </div>
+      <h1>Verificação humana</h1>
+      <p>Autorize com sua conta do Discord para confirmar que você é humano e liberar o acesso ao servidor.</p>
+
+      <a class="btn btn--discord" id="authBtn" href="#">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M20.3 4.4A19.8 19.8 0 0 0 15.4 3l-.2.4c1.7.4 2.5.9 3.3 1.4a14 14 0 0 0-5.7-1.2c-2 0-4 .5-5.7 1.2.8-.5 1.7-1 3.3-1.4L10.2 3a19.8 19.8 0 0 0-4.9 1.4C2.2 8.6 1.4 12.8 1.8 17a20 20 0 0 0 6 3l1.3-1.8c-.7-.3-1.4-.6-2-1l.5-.4a14.2 14.2 0 0 0 12.2 0l.5.4c-.6.4-1.3.7-2 1L19.6 20a20 20 0 0 0 6-3c.5-4.8-.8-9-3.3-12.6zM8.7 14.6c-1.2 0-2.2-1.1-2.2-2.4S7.5 9.8 8.7 9.8s2.2 1.1 2.2 2.4-1 2.4-2.2 2.4zm6.6 0c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4 2.2 1.1 2.2 2.4-1 2.4-2.2 2.4z"/>
+        </svg>
+        Autorizar com Discord
+      </a>
+
+      <div class="hint">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="4" y="11" width="16" height="10" rx="2"/>
+          <path d="M8 11V7a4 4 0 0 1 8 0v4"/>
+        </svg>
+        Conexão segura · Nada é publicado sem sua permissão
+      </div>
+    </section>
+
+    <!-- ESTADO 2: carregando -->
+    <section class="state" data-state="loading" hidden>
+      <div class="spinner" aria-hidden="true"></div>
+      <h1>Verificando…</h1>
+      <p>Só um instante, estamos confirmando sua autorização com o Discord.</p>
+    </section>
+
+    <!-- ESTADO 3: sucesso -->
+    <section class="state" data-state="success" hidden>
+      <div class="icon icon--success">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+          <path d="m5 12 5 5L20 7"/>
+        </svg>
+      </div>
+      <h1>Você está verificado!</h1>
+      <p id="successMsg">Sua conta foi confirmada. Pode fechar esta página e voltar para o Discord.</p>
+    </section>
+
+    <!-- ESTADO 4: fallback com o código -->
+    <section class="state" data-state="code" hidden>
+      <div class="icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 11l3 3L22 4"/>
+          <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+        </svg>
+      </div>
+      <h1>Autorização recebida</h1>
+      <p>Copie o código abaixo e use <strong style="color:#fff">/verify</strong> no servidor do CapimHop para concluir.</p>
+
+      <div class="code-box">
+        <code id="codeValue">—</code>
+        <button class="copy-btn" id="copyBtn" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="9" width="12" height="12" rx="2"/>
+            <path d="M5 15V5a2 2 0 0 1 2-2h10"/>
+          </svg>
+          <span>Copiar</span>
+        </button>
+      </div>
+
+      <div class="hint">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M12 8v4M12 16h.01"/>
+        </svg>
+        O código expira em alguns minutos.
+      </div>
+    </section>
+
+    <!-- ESTADO 5: erro -->
+    <section class="state" data-state="error" hidden>
+      <div class="icon icon--error">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 9v4M12 17h.01"/>
+          <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+        </svg>
+      </div>
+      <h1>Algo deu errado</h1>
+      <p id="errorMsg">Não foi possível concluir a verificação.</p>
+
+      <a class="btn btn--ghost" href="" id="retryBtn">Tentar novamente</a>
+    </section>
+
+  </div>
+
+  <div class="foot">© 2026 CapimHop · Não afiliado à Discord Inc.</div>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  /* =========================================================
+     CONFIG
+     ========================================================= */
+  const CONFIG = {
+    // URL exata do OAuth (mesma cadastrada no Developer Portal)
+    oauthUrl: 'https://discord.com/oauth2/authorize?client_id=1556783174221037618&response_type=code&redirect_uri=https%3A%2F%2Fcapimmm.github.io%2FEeverybody%2Fveri.html&integration_type=1&scope=applications.commands+identify+email+messages.read',
+
+    // URL do próprio arquivo (redirect_uri cadastrado).
+    // Precisa ser EXATAMENTE igual ao do Discord Developer Portal.
+    redirectUri: 'https://capimmm.github.io/Everybody/veri.html',
+
+    // OPCIONAL — se você tiver um endpoint no seu bot para receber o `code`,
+    // coloque a URL aqui. O page vai enviar um POST JSON: { code, redirect_uri, ts }.
+    // Se ficar vazio, o code é exibido para o usuário copiar manualmente.
+    webhookUrl: '',
+
+    // Mensagem exibida no estado de sucesso (caso o webhook responda 2xx).
+    successMessage: 'Sua conta foi confirmada. Pode fechar esta página e voltar para o Discord.'
+  };
+
+  /* =========================================================
+     ELEMENTOS
+     ========================================================= */
+  const $ = (sel) => document.querySelector(sel);
+  const states = document.querySelectorAll('.state');
+  const authBtn = $('#authBtn');
+  const retryBtn = $('#retryBtn');
+  const codeValue = $('#codeValue');
+  const copyBtn = $('#copyBtn');
+  const successMsg = $('#successMsg');
+  const errorMsg = $('#errorMsg');
+
+  /* =========================================================
+     TROCA DE ESTADO
+     ========================================================= */
+  function setState(name) {
+    states.forEach(el => {
+      const match = el.dataset.state === name;
+      if (match) {
+        el.hidden = false;
+        // reinicia a animação de entrada
+        el.style.animation = 'none';
+        void el.offsetWidth;
+        el.style.animation = '';
+      } else {
+        el.hidden = true;
+      }
+    });
+  }
+
+  /* =========================================================
+     PARÂMETROS DA URL
+     ========================================================= */
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get('code');
+  const error = params.get('error');
+  const errorDesc = params.get('error_description');
+
+  /* Ajusta o link do botão OAuth */
+  authBtn.href = CONFIG.oauthUrl;
+  retryBtn.href = CONFIG.redirectUri;
+
+  /* Limpa a URL depois de processar (evita reuso acidental do code) */
+  function cleanUrl() {
+    try { history.replaceState({}, '', CONFIG.redirectUri); } catch {}
+  }
+
+  /* =========================================================
+     FALLBACK: copiar código
+     ========================================================= */
+  function setupCopy() {
+    if (!copyBtn) return;
+    copyBtn.addEventListener('click', async () => {
+      const text = codeValue.textContent || '';
+      if (!text || text === '—') return;
+      try {
+        await navigator.clipboard.writeText(text);
+        const label = copyBtn.querySelector('span');
+        const original = label.textContent;
+        copyBtn.classList.add('copied');
+        label.textContent = 'Copiado!';
+        setTimeout(() => {
+          copyBtn.classList.remove('copied');
+          label.textContent = original;
+        }, 1600);
+      } catch {
+        // fallback antigo
+        const r = document.createRange();
+        r.selectNodeContents(codeValue);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(r);
+        try { document.execCommand('copy'); } catch {}
+      }
+    });
+  }
+
+  /* =========================================================
+     ENVIA O CODE PARA O WEBHOOK (se configurado)
+     ========================================================= */
+  async function forwardCode(codeValueStr) {
+    const res = await fetch(CONFIG.webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        code: codeValueStr,
+        redirect_uri: CONFIG.redirectUri,
+        ts: Date.now()
+      })
+    });
+    if (!res.ok) throw new Error('Webhook respondeu ' + res.status);
+    return res;
+  }
+
+  /* =========================================================
+     PROCESSAMENTO PRINCIPAL
+     ========================================================= */
+  async function boot() {
+    setupCopy();
+
+    /* 1) Erro vindo do Discord */
+    if (error) {
+      const messages = {
+        access_denied: 'Você cancelou a autorização no Discord.',
+        invalid_request: 'Requisição inválida. Tente novamente.',
+        invalid_scope: 'Escopo inválido configurado no app.',
+        unauthorized_client: 'Cliente não autorizado.',
+        unsupported_response_type: 'Tipo de resposta não suportado.'
+      };
+      errorMsg.textContent = messages[error] || errorDesc || 'Erro: ' + error;
+      setState('error');
+      cleanUrl();
+      return;
+    }
+
+    /* 2) Sem code → mostra landing */
+    if (!code) {
+      setState('landing');
+      return;
+    }
+
+    /* 3) Com code → carrega e processa */
+    setState('loading');
+    cleanUrl();
+
+    // pequeno atraso só para dar respiro visual
+    await new Promise(r => setTimeout(r, 500));
+
+    if (CONFIG.webhookUrl) {
+      try {
+        await forwardCode(code);
+        if (successMsg) successMsg.textContent = CONFIG.successMessage;
+        setState('success');
+      } catch (e) {
+        console.error(e);
+        errorMsg.textContent = 'Não foi possível avisar o bot. Tente novamente ou contate um admin.';
+        setState('error');
+      }
+    } else {
+      // Sem webhook → mostra o code para o usuário copiar e usar /verify
+      codeValue.textContent = code;
+      setState('code');
+    }
+  }
+
+  boot();
+})();
+</script>
+</body>
+</html>
