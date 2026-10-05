@@ -151,9 +151,9 @@
   <script>
     const CLIENT_ID = '1556783174221037618';
     const REDIRECT_URI = encodeURIComponent('https://capimmm.github.io/Everybody/');
-    const LOGIN_URL = `https://discord.com/oauth2/authorize?client_id=1556783174221037618&redirect_uri=https%3A%2F%2Fcapimmm.github.io%2FEverybody%2F&response_type=token&scope=identify%20guilds`;
+    const LOGIN_URL = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&redirect_uri=${REDIRECT_URI}&response_type=token&scope=identify%20guilds`;
 
-    // Endereço local onde seu bot rodará no seu computador
+    // Endereço local onde o bot roda no seu computador
     const BOT_API_URL = 'http://localhost:8080/api/iniciar-marcar';
 
     function toggleRoleInput() {
@@ -166,7 +166,33 @@
       return fragment.get('access_token');
     }
 
+    function preencherCamposUrl() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const guildId = urlParams.get('guildId');
+      const channelId = urlParams.get('channelId');
+
+      if (guildId) {
+        document.getElementById('guildId').value = guildId;
+      }
+      if (channelId) {
+        document.getElementById('channelId').value = channelId;
+      }
+    }
+
     window.addEventListener('DOMContentLoaded', async () => {
+      preencherCamposUrl();
+
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('guildId')) {
+        sessionStorage.setItem('temp_guildId', urlParams.get('guildId'));
+        sessionStorage.setItem('temp_channelId', urlParams.get('channelId'));
+      }
+
+      if (!document.getElementById('guildId').value && sessionStorage.getItem('temp_guildId')) {
+        document.getElementById('guildId').value = sessionStorage.getItem('temp_guildId');
+        document.getElementById('channelId').value = sessionStorage.getItem('temp_channelId');
+      }
+
       document.getElementById('login-btn').href = LOGIN_URL;
       const token = parseOAuthToken();
 
@@ -181,7 +207,7 @@
           document.getElementById('login-btn').style.display = 'none';
           document.getElementById('panel-form').style.display = 'block';
         } catch (e) {
-          console.error(e);
+          console.error('Erro ao buscar perfil:', e);
         }
       }
     });
